@@ -21,17 +21,10 @@ Bounce2::Button btnR = Bounce2::Button();
 TFT_eSPI  tft;
 DHT20     DHT;
 
-//const char* ssid = "x.factory";
-//const char* password =  "make0314";
-//const char* URL_BASE = "https://restapi.amap.com/v3/weather/weatherInfo?city=cityCode&key=yourKey";
-//const char* URL_ALL  = "https://restapi.amap.com/v3/weather/weatherInfo?city=cityCode&key=yourKey&extensions=all";
-
-const char* ssid = "FCTC_89";
-const char* password =  "Lu15899962740";
-// 440100
-const char* URL_BASE = "https://restapi.amap.com/v3/weather/weatherInfo?city=441802&key=ac901c195798b1f2767987a55ee74156";
-const char* URL_ALL  = "https://restapi.amap.com/v3/weather/weatherInfo?city=441802&key=ac901c195798b1f2767987a55ee74156&extensions=all";
-
+const char* ssid = "yourNetwork";
+const char* password =  "yourPassword";
+const char* URL_BASE = "https://restapi.amap.com/v3/weather/weatherInfo?city=cityCode&key=yourKey";
+const char* URL_ALL  = "https://restapi.amap.com/v3/weather/weatherInfo?city=cityCode&key=yourKey&extensions=all";
 
 WiFiClientSecure client;
 
@@ -103,28 +96,14 @@ void setup()
     tft.fillScreen(tft.color565(24,15,60));
     tft.fillScreen(TFT_NAVY);
     tft.setFreeFont(FMB12);
-    tft.setCursor((320 - tft.textWidth("Funpack Weather Box"))/2, 100);
-    tft.print("Funpack Weather Box");
+    tft.setCursor((320 - tft.textWidth("Seeed Weather Box"))/2, 100);
+    tft.print("Seeed Weather Box");
 
     if (! DHT.begin()) {
         Serial.println("Could not find AHT Sensor? Check wiring");
         while (1) delay(10);
     }
     Serial.println("DHT20 init OK!");
-
-#if 0
-    if (! air_sensor.init()) {
-        Serial.println("Could not find Air Sensor? Check wiring");
-        while (1) delay(10);
-    }
-    Serial.println("Air sensor found");
-    
-    if (PM_sensor.init()) {
-        Serial.println("Could not find HM330X Sensor? Check wiring");
-        while (1) delay(10);
-    }
-    Serial.println("HM330X sensor found");
-#endif
 
     tft.setFreeFont(FM9);
     tft.setTextColor(TFT_LIGHTGREY);
@@ -226,21 +205,6 @@ void loop()
     }
 }
 
-#if 0
-HM330XErrorCode parse_result_PM2(uint8_t *data, int *PM_value) {
-    uint16_t value = 0;
-    if (NULL == data) {
-        return ERROR_PARAM;
-    }
-    
-    value = (uint16_t) data[3 * 2] << 8 | data[3 * 2 + 1];
-    
-    *PM_value = value;
-    
-    return NO_ERROR;
-}
-#endif
-
 void updateSensorData()
 {
     int status = DHT.read();
@@ -267,46 +231,6 @@ void updateSensorData()
     drawHumiValue(DHT.getHumidity());
 }
 
-void drawAqiValue(const int aqi) {
-   tft.setFreeFont(FM9);
-
-   if (aqi < 50) {
-      tft.setTextColor(TFT_GREEN, tft.color565(24,15,60));
-   } else if (aqi < 100) {
-      tft.setTextColor(TFT_YELLOW, tft.color565(24,15,60));
-   } else if (aqi < 150) {
-      tft.setTextColor(TFT_ORANGE, tft.color565(24,15,60));
-   } else if (aqi < 200) {
-      tft.setTextColor(TFT_RED, tft.color565(24,15,60));
-   } else if (aqi < 300) {
-      tft.setTextColor(TFT_PURPLE, tft.color565(24,15,60));
-   } else {
-      tft.setTextColor(TFT_MAROON, tft.color565(24,15,60));
-   }
-   
-   tft.drawString("AQI: "+String(aqi)+" ", 20, 210);
-}
-
-void drawPm25Value(const int pm) {
-   tft.setFreeFont(FM9);
-
-   if (pm < 15) {
-      tft.setTextColor(TFT_GREEN, tft.color565(24,15,60));
-   } else if (pm < 35) {
-      tft.setTextColor(TFT_YELLOW, tft.color565(24,15,60));
-   } else if (pm < 55) {
-      tft.setTextColor(TFT_ORANGE, tft.color565(24,15,60));
-   } else if (pm < 150) {
-      tft.setTextColor(TFT_RED, tft.color565(24,15,60));
-   } else if (pm < 250) {
-      tft.setTextColor(TFT_PURPLE, tft.color565(24,15,60));
-   } else if (pm < 300) {
-      tft.setTextColor(TFT_MAROON, tft.color565(24,15,60));
-   }
-   
-   tft.drawString("PM2.5: "+String(pm)+" ", 170, 210);
-}
-
 void drawTempValue(const float temp) {
    tft.setFreeFont(FMB24);
    tft.setTextColor(TFT_RED, tft.color565(40,40,86));
@@ -326,7 +250,7 @@ void drawWeatherLivePage(lives_t &lives_data)
     tft.fillScreen(tft.color565(24,15,60));
     tft.setFreeFont(FF17);
     tft.setTextColor(tft.color565(224,225,232));
-    tft.drawString("Funpack Weather Box", 10, 10);
+    tft.drawString("Seeed Weather Box", 10, 10);
 
     tft.setFreeFont(FMB9);
     if (0 == strcmp(lives_data.weather, "晴")) {
@@ -354,6 +278,9 @@ void drawWeatherLivePage(lives_t &lives_data)
     tft.setTextColor(TFT_DARKGREY);
     tft.drawString("  'C",  90, 110);
     tft.drawString("% rH", 250, 110);
+
+    tft.setCursor((320 - tft.textWidth(lives_data.reporttime))/2, 220);
+    tft.print(lives_data.reporttime);
 
     tft.setFreeFont(FMB24);
     tft.setTextColor(TFT_RED, tft.color565(40,40,86));
