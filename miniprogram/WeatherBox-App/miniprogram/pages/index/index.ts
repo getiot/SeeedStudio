@@ -2,14 +2,29 @@
 // 获取应用实例
 const app = getApp<IAppOption>()
 
+var mqtt = require('../../utils/mqtt.min.js');
+const crypto = require('../../utils/hex_hmac_sha1.js');
+
+const host = 'broker-cn.emqx.io'
+
 Page({
   data: {
-    motto: 'Hello World',
-    userInfo: {},
-    hasUserInfo: false,
-    canIUse: wx.canIUse('button.open-type.getUserInfo'),
-    canIUseGetUserProfile: false,
-    canIUseOpenData: wx.canIUse('open-data.type.userAvatarUrl') && wx.canIUse('open-data.type.userNickName') // 如需尝试获取用户信息可改为false
+    client: null,
+    reconnectCounts: 0,
+    options: {
+      protocolVersion: 5,
+      clientId: 'wiot-01',
+      clean: false,
+      reconnectPeriod: 1000,
+      connectTimeout: 30 * 1000,
+      resubscribe: true
+    },
+    air: {
+      temp: {value: 0},
+      humi: {value: 0},
+      pm25: {value: 0},
+      aqi: {value: 0}
+    }
   },
   // 事件处理函数
   bindViewTap() {
@@ -19,11 +34,12 @@ Page({
   },
   onLoad() {
     // @ts-ignore
-    if (wx.getUserProfile) {
-      this.setData({
-        canIUseGetUserProfile: true
+    this.data.client = mqtt.connect(host, this.data.options);
+    this.data.client.on('connect', function(connack) {
+      wx.showToast({
+        title:'连接成功'
       })
-    }
+    })
   },
   getUserProfile() {
     // 推荐使用wx.getUserProfile获取用户信息，开发者每次通过该接口获取用户个人信息均需用户确认，开发者妥善保管用户快速填写的头像昵称，避免重复弹窗

@@ -1,4 +1,21 @@
 <!--index.wxml-->
 <view class="container">
-
+  <view class="air-container">
+    <view class="air-box">
+      <text class="air-label">温度</text>
+      <text></text>
+    </view>
+    <view class="air-box">
+      <text class="air-label">湿度</text>
+      <text></text>
+    </view>
+    <view class="air-box">
+      <text class="air-label">PM2.5</text>
+      <text></text>
+    </view>
+    <view class="air-box">
+      <text class="air-label">AQI</text>
+      <text></text>
+    </view>
+  </view>
 </view>
