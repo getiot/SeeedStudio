@@ -7,6 +7,9 @@
 #include "Free_Fonts.h"
 #include "TFT_eSPI.h"
 
+/* MQTT */
+#include <PubSubClient.h>
+
 /* Sensor */
 #include <DHT20.h>
 #include <Seeed_HM330X.h>
@@ -25,19 +28,28 @@ DHT20            DHT;
 AirQualitySensor air_sensor(A0);
 HM330X           PM_sensor;
 
-//const char* ssid = "x.factory";
-//const char* password =  "make0314";
-//const char* URL_BASE = "https://restapi.amap.com/v3/weather/weatherInfo?city=cityCode&key=yourKey";
-//const char* URL_ALL  = "https://restapi.amap.com/v3/weather/weatherInfo?city=cityCode&key=yourKey&extensions=all";
+const char *ssid     = "yourNetwork";
+const char *password = "yourPassword";
+const char *URL_BASE = "https://restapi.amap.com/v3/weather/weatherInfo?city=cityCode&key=yourKey";
+const char *URL_ALL  = "https://restapi.amap.com/v3/weather/weatherInfo?city=cityCode&key=yourKey&extensions=all";
 
-const char* ssid = "FCTC_89";
-const char* password =  "Lu15899962740";
-// 440100
-const char* URL_BASE = "https://restapi.amap.com/v3/weather/weatherInfo?city=441802&key=ac901c195798b1f2767987a55ee74156";
-const char* URL_ALL  = "https://restapi.amap.com/v3/weather/weatherInfo?city=441802&key=ac901c195798b1f2767987a55ee74156&extensions=all";
+#define ProductKey     "a1eubzkCwuz"
+#define DeviceName     "wiot_01"
+#define DeviceSecret   "56e89exxxxxxxxxxxxxxxxxxxxf362b4"
 
+#define MQTT_HOST      "a1eubzkCwuz.iot-as-mqtt.cn-shanghai.aliyuncs.com"
+#define CLIENTID       "a1eubzkCwuz.wiot_01|securemode=2,signmethod=hmacsha256,timestamp=1657691211776|"
+#define USERNAME       "wiot_01&a1eubzkCwuz"
+#define PASSWORD       "13ef429e9cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxdfaf05f13"
+#define MQTT_PORT      1883
 
-WiFiClientSecure client;
+#define HELLO_TOPIC    "/"ProductKey"/"DeviceName"/user/hello"
+#define PROPERTY_TOPIC "/sys/"ProductKey"/"DeviceName"/thing/event/property/post"
+
+#define UPLOAD_MESSAGE "{\"id\":\"123\",\"version\":\"1.0\",\"sys\":{\"ack\":0},\"params\":{\"Temperature\":{\"value\":%.1f},\"Humidity\":{\"value\":%.1f},\"PM25\":{\"value\":%u},\"AQI\":{\"value\":%u}},\"method\":\"thing.event.property.post\"}"
+
+WiFiClientSecure wifiClient;
+PubSubClient mqttClient(wifiClient);
 
 #define STR_SIZE_MAX   16
 
@@ -84,6 +96,57 @@ int currentPage = PAGE_1;
 boolean pageChanged = false;
 boolean update_flag = true;
 
+long lastMsg = 0;
+char msg[512];
+int value = 0;
+
+void mqtt_callback(char* topic, byte* payload, unsigned int length)
+{
+  //tft.fillScreen(TFT_BLACK);
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  char buff_p[length];
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+    buff_p[i] = (char)payload[i];
+  }
+  Serial.println();
+#if 0
+  buff_p[length] = '\0';
+  String msg_p = String(buff_p);
+  tft.fillScreen(TFT_BLACK);
+  tft.setCursor((320 - tft.textWidth("MQTT Message")) / 2, 90);
+  tft.print("MQTT Message: " );
+  tft.setCursor((320 - tft.textWidth(msg_p)) / 2, 120);
+  tft.print(msg_p); // Print receved payload
+#endif
+}
+
+void mqtt_connect()
+{
+  // Loop until we're reconnected
+  while (!mqttClient.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    
+    // Attempt to connect
+    if (mqttClient.connect(CLIENTID, USERNAME, PASSWORD)) {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      mqttClient.publish("WTout", "hello world");
+      // ... and resubscribe
+      mqttClient.subscribe("WTin");
+      mqttClient.subscribe("WTout");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(mqttClient.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
 void setup()
 {
     btnA.attach( WIO_KEY_C ,  INPUT_PULLUP );
@@ -107,8 +170,8 @@ void setup()
     tft.fillScreen(tft.color565(24,15,60));
     tft.fillScreen(TFT_NAVY);
     tft.setFreeFont(FMB12);
-    tft.setCursor((320 - tft.textWidth("Funpack Weather Box"))/2, 100);
-    tft.print("Funpack Weather Box");
+    tft.setCursor((320 - tft.textWidth("Seeed Weather Box"))/2, 100);
+    tft.print("Seeed Weather Box");
 
     delay(5);
 
@@ -143,13 +206,24 @@ void setup()
     }
     Serial.print("Connected to the WiFi network with IP: ");
     Serial.println(WiFi.localIP());
-    //client.setCACert(test_root_ca);
+    //wifiClient.setCACert(test_root_ca);
 
-    if(&client) {   
+    tft.setCursor((320 - tft.textWidth("Connecting MQTT..."))/2, 200);
+    tft.print("Connecting MQTT...");
+
+    mqttClient.setServer(MQTT_HOST, MQTT_PORT); // Connect the MQTT Server
+    mqttClient.setKeepAlive(300); // Must be in 30s - 1200s
+    mqttClient.setCallback(mqtt_callback);
+
+    if(&wifiClient) {   
         getWeatherLives();
         getWeatherForecasts();
     }
     drawWeatherLivePage(lives_data);
+
+    if (!mqttClient.connected()) {
+        mqtt_connect();
+    }
 }
 
 void loop()
@@ -228,6 +302,11 @@ void loop()
       } break;
       default: break;
     }
+
+    if (!mqttClient.connected()) {
+        mqtt_connect();
+    }
+    //mqttClient.loop();
 }
                     
 HM330XErrorCode parse_result_PM2(uint8_t *data, int *PM_value) {
@@ -298,6 +377,19 @@ void updateSensorData()
     drawHumiValue(DHT.getHumidity());
     drawAqiValue(aqi);
     drawPm25Value(PM_value);
+
+    static int upload_count = 0;
+    if (0 == upload_count++ % 10) {
+        // MQTT message
+        snprintf(msg, sizeof(msg), UPLOAD_MESSAGE, DHT.getTemperature(), DHT.getHumidity(), PM_value, aqi);
+        
+        mqttClient.publish(PROPERTY_TOPIC, msg);
+
+        Serial.print("Publish topic: ");
+        Serial.println(PROPERTY_TOPIC);
+        Serial.print("Publish message: ");
+        Serial.println(msg);
+    }
 }
 
 void drawAqiValue(const int aqi) {
@@ -317,7 +409,7 @@ void drawAqiValue(const int aqi) {
       tft.setTextColor(TFT_MAROON, tft.color565(24,15,60));
    }
    
-   tft.drawString("AQI: "+String(aqi)+" ", 20, 210);
+   tft.drawString("AQI: "+String(aqi)+"    ", 20, 210);
 }
 
 void drawPm25Value(const int pm) {
@@ -337,7 +429,7 @@ void drawPm25Value(const int pm) {
       tft.setTextColor(TFT_MAROON, tft.color565(24,15,60));
    }
    
-   tft.drawString("PM2.5: "+String(pm)+" ", 170, 210);
+   tft.drawString("PM2.5: "+String(pm)+"    ", 170, 210);
 }
 
 void drawTempValue(const float temp) {
@@ -359,7 +451,7 @@ void drawWeatherLivePage(lives_t &lives_data)
     tft.fillScreen(tft.color565(24,15,60));
     tft.setFreeFont(FF17);
     tft.setTextColor(tft.color565(224,225,232));
-    tft.drawString("Funpack Weather Box", 10, 10);
+    tft.drawString("Seeed Weather Box", 10, 10);
 
     tft.setFreeFont(FMB9);
     if (0 == strcmp(lives_data.weather, "晴")) {
@@ -457,12 +549,12 @@ void drawWeatherForecastPage(forecasts_t *forecasts_data)
 
 void getWeatherLives()
 {
-    // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *client is
+    // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *wifiClient is
     HTTPClient https;
     
     Serial.print("[HTTPS] begin... weather lives\n");
     
-    if (https.begin(client, URL_BASE))
+    if (https.begin(wifiClient, URL_BASE))
     {
         Serial.print("[HTTPS] GET...\n");
         
@@ -513,12 +605,12 @@ void getWeatherLives()
 
 void getWeatherForecasts()
 {
-    // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *client is
+    // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *wifiClient is
     HTTPClient https;
     
     Serial.print("[HTTPS] begin... weather lives\n");
     
-    if (https.begin(client, URL_ALL))
+    if (https.begin(wifiClient, URL_ALL))
     {
         Serial.print("[HTTPS] GET...\n");
         
